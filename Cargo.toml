@@ -1,0 +1,9 @@
+[package]
+name = "arsk"
+version = "0.1.0"
+authors = ["dave <lancaster.dave@gmail.com>"]
+
+[dependencies]
+error-chain = "0.11.*"
+rpassword = "1.0.*"
+term-painter = "0.2.*"
