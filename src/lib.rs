@@ -22,6 +22,11 @@ pub enum Colour {
     Blue,
 }
 
+struct Colours {
+    fg: term_painter::Color,
+    bg: term_painter::Color,
+}
+
 #[derive(Default)]
 struct State<'ask> {
     no_answer: Option<bool>,
@@ -42,16 +47,16 @@ pub struct StateBuilder<'ask, T: Display + Default> {
 }
 
 impl<'ask, T: Display + Default> StateBuilder<'ask, T> {
-    fn print_message(&self, fg_colour: term_painter::Color, bg_colour: term_painter::Color) {
+    fn print_message(&self, colours: &Colours) {
         let message = match self.state.prompt {
             Some(prompt) => format!("{},{}", self.msg, prompt),
             None => format!("{}", self.msg),
         };
-        println!("{}", fg_colour.bg(bg_colour).paint(&message));
+        println!("{}", colours.fg.bg(colours.bg).paint(&message));
     }
 
-    fn print_confirm(&self, fg_colour: term_painter::Color, bg_colour: term_painter::Color) {
-        println!("{}", fg_colour.bg(bg_colour).paint("Are you sure? Y/N"));
+    fn print_confirm(&self, colours: &Colours) {
+        println!("{}", colours.fg.bg(colours.bg).paint("Are you sure? Y/N"));
     }
 
     fn read_no_echo(&mut self) -> Result<Answer> {
@@ -91,10 +96,10 @@ impl<'ask, T: Display + Default> StateBuilder<'ask, T> {
         }
     }
 
-    fn loop_confirm(&mut self, fg_colour: term_painter::Color, bg_colour: term_painter::Color) {
+    fn loop_confirm(&mut self, colours: &Colours) {
         loop {
-            self.print_message(fg_colour, bg_colour);
-            self.print_confirm(fg_colour, bg_colour);
+            self.print_message(colours);
+            self.print_confirm(colours);
             match self.read() {
                 Ok(input) => {
                     if input.to_string() == "y" || input.to_string() == "Y" {
@@ -106,17 +111,19 @@ impl<'ask, T: Display + Default> StateBuilder<'ask, T> {
         }
     }
 
-    fn check_confirm(&mut self, fg_colour: term_painter::Color, bg_colour: term_painter::Color) {
+    fn check_confirm(&mut self, colours: &Colours) {
         match self.state.confirm {
-            Some(true) => self.loop_confirm(fg_colour, bg_colour),
-            _ => self.print_message(fg_colour, bg_colour),
+            Some(true) => self.loop_confirm(colours),
+            _ => self.print_message(colours),
         };
     }
 
     fn check_colour(&mut self) {
-        let fg_colour = self.get_fg_colour();
-        let bg_colour = self.get_bg_colour();
-        self.check_confirm(fg_colour, bg_colour);
+        let colours = Colours {
+            fg: self.get_fg_colour(),
+            bg: self.get_bg_colour(),
+        };
+        self.check_confirm(&colours);
     }
 
     fn read(&mut self) -> Result<Answer> {
