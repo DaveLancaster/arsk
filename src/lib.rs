@@ -10,7 +10,7 @@ mod errors {
 use errors::*;
 use std::io::{stdin, Cursor, BufRead};
 use std::fmt::Display;
-use rpassword::read_password;
+use rpassword::{read_password, read_password_with_reader};
 use term_painter::Color::*;
 use term_painter::ToStyle;
 
@@ -56,7 +56,11 @@ impl<'ask, T: Display + Default> StateBuilder<'ask, T> {
 
     fn read_no_echo(&mut self) -> Result<Answer> {
         self.check_colour();
-        Ok(read_password().chain_err(|| "Unable to disable STDOUT echo.")?)
+        let response = match self.state.redirect_in {
+            Some(ref mut cur) => read_password_with_reader(Some(cur)),
+            _ => read_password(),
+        };
+        Ok(response.chain_err(|| "Unable to read input.")?)
     }
 
     fn check_no_echo(&mut self) -> Result<Answer> {
@@ -212,6 +216,10 @@ mod tests {
         Cursor::new(&b"A response."[..])
     }
 
+    fn mock_no_echo() -> Cursor<&'static [u8]> {
+        Cursor::new(&b"A response.\r\n"[..])
+    }
+
     fn mock_confirm() -> Cursor<&'static [u8]> {
         Cursor::new(&b"y"[..])
     }
@@ -223,7 +231,8 @@ mod tests {
 
     #[test]
     fn can_disable_echo() {
-        assert_eq!(input(MSG).redirect_in(mock_input()).ask().unwrap(), RSP);
+        assert_eq!(input(MSG).redirect_in(mock_no_echo()).no_echo().ask().unwrap(),
+                   RSP);
     }
 
     #[test]

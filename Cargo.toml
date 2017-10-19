@@ -5,5 +5,5 @@ authors = ["dave <lancaster.dave@gmail.com>"]
 
 [dependencies]
 error-chain = "0.11.*"
-rpassword = "1.0.*"
+rpassword = "2.0.*"
 term-painter = "0.2.*"
