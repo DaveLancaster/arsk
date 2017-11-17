@@ -218,10 +218,11 @@ mod tests {
     use ::{input, Colour, Answer, Cursor};
 
     const MSG: &str = "A test message.";
-    const RSP: &str = "A response.";
+    const DEFAULT_RESPONSE: &str = "A response.";
+    const EMPTY_RESPONSE: &str = "";
 
     enum Message {
-        TestMessage
+        TestMessage,
     }
 
     impl fmt::Display for Message {
@@ -231,7 +232,9 @@ mod tests {
     }
 
     impl Default for Message {
-        fn default() -> Message { Message::TestMessage }
+        fn default() -> Message {
+            Message::TestMessage
+        }
     }
 
     fn mock_input() -> Cursor<&'static [u8]> {
@@ -248,61 +251,63 @@ mod tests {
 
     #[test]
     fn can_ask_a_question() {
-        assert_eq!(input(MSG).redirect_in(mock_input()).ask().unwrap(), RSP);
+        assert_eq!(input(MSG).redirect_in(mock_input()).ask().unwrap(),
+                   DEFAULT_RESPONSE);
     }
 
     #[test]
     fn can_disable_echo() {
         assert_eq!(input(MSG).redirect_in(mock_no_echo()).no_echo().ask().unwrap(),
-                   RSP);
+                   DEFAULT_RESPONSE);
     }
 
     #[test]
     fn can_disable_answer() {
         assert_eq!(input(MSG).redirect_in(mock_input()).no_answer().ask().unwrap(),
-                   String::new());
+                   EMPTY_RESPONSE);
     }
 
     #[test]
     fn can_chain_operations() {
         assert_eq!(input(MSG).redirect_in(mock_input()).no_answer().ask().unwrap(),
-                   String::new());
+                   EMPTY_RESPONSE);
     }
 
     #[test]
     fn can_set_prompt() {
         assert_eq!(input(MSG).redirect_in(mock_input()).prompt(&':').ask().unwrap(),
-                   RSP)
+                   DEFAULT_RESPONSE)
     }
 
     #[test]
     fn can_set_fg_colour() {
         assert_eq!(input(MSG).redirect_in(mock_input()).fg_colour(Colour::Red).ask().unwrap(),
-                   RSP);
+                   DEFAULT_RESPONSE);
     }
 
     #[test]
     fn can_set_bg_colour() {
         assert_eq!(input(MSG).redirect_in(mock_input()).bg_colour(Colour::Red).ask().unwrap(),
-                   RSP);
+                   DEFAULT_RESPONSE);
     }
 
     #[test]
     fn can_ask_for_confirmation() {
         assert_eq!(input(MSG).redirect_in(mock_confirm()).confirm().no_answer().ask().unwrap(),
-                   "");
+                   EMPTY_RESPONSE);
     }
 
     #[test]
     fn can_validate_answer() {
-        let valid = |a: Answer| -> bool { if a == RSP { true } else { false } };
+        let valid = |a: Answer| -> bool { if a == DEFAULT_RESPONSE { true } else { false } };
         assert_eq!(input(MSG).redirect_in(mock_input()).validate(&valid).ask().unwrap(),
-                   RSP);
+                   DEFAULT_RESPONSE);
     }
 
     #[test]
     fn can_accept_any_type_implementing_display_and_default() {
         let message = Message::TestMessage;
-        assert_eq!(input(message).redirect_in(mock_input()).ask().unwrap(), RSP);
+        assert_eq!(input(message).redirect_in(mock_input()).ask().unwrap(),
+                   DEFAULT_RESPONSE);
     }
 }
