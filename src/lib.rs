@@ -214,10 +214,25 @@ pub fn input<'ask, T: Display + Default>(msg: T) -> StateBuilder<'ask, T> {
 
 #[cfg(test)]
 mod tests {
+    use std::fmt;
     use ::{input, Colour, Answer, Cursor};
 
     const MSG: &str = "A test message.";
     const RSP: &str = "A response.";
+
+    enum Message {
+        TestMessage
+    }
+
+    impl fmt::Display for Message {
+        fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+            write!(f, "Test Message")
+        }
+    }
+
+    impl Default for Message {
+        fn default() -> Message { Message::TestMessage }
+    }
 
     fn mock_input() -> Cursor<&'static [u8]> {
         Cursor::new(&b"A response."[..])
@@ -283,5 +298,11 @@ mod tests {
         let valid = |a: Answer| -> bool { if a == RSP { true } else { false } };
         assert_eq!(input(MSG).redirect_in(mock_input()).validate(&valid).ask().unwrap(),
                    RSP);
+    }
+
+    #[test]
+    fn can_accept_any_type_implementing_display_and_default() {
+        let message = Message::TestMessage;
+        assert_eq!(input(message).redirect_in(mock_input()).ask().unwrap(), RSP);
     }
 }
