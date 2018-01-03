@@ -54,7 +54,7 @@ pub struct StateBuilder<'ask, T: Display + Default> {
 impl<'ask, T: Display + Default> StateBuilder<'ask, T> {
     fn print_message(&mut self, colours: &Colours) -> Result<()> {
         let message = match self.state.prompt {
-            Some(prompt) => format!("{},{}", self.msg, prompt),
+            Some(prompt) => format!("{}{}", self.msg, prompt),
             None => format!("{}", self.msg),
         };
         self.print(colours, message)
