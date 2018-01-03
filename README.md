@@ -14,8 +14,10 @@ arsk = { git = "https://github.com/DaveLancaster/arsk" }
 
 You can prompt users for input like so:
 ```
-let colour = arsk::Colour::Red;
-let resp = arsk::input("What shall we do today?").prompt(&':').fg_colour(colour).ask().unwrap();
+extern crate arsk;
+
+let msg = "What shall we do today?";
+let resp = arsk::input(msg).prompt(&':').fg_colour(arsk::Colour::Red).ask().unwrap();
 ```
 
 ## Contributing
