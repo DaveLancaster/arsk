@@ -7,7 +7,7 @@ Prompt for user input in a composable way.
 Add this line to your application's Cargo.toml:
 ```
 [dependencies]
-rand = { git = "https://github.com/DaveLancaster/arsk" }
+arsk = { git = "https://github.com/DaveLancaster/arsk" }
 ```
 
 ## Usage
