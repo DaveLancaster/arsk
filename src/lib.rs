@@ -4,11 +4,15 @@ extern crate rpassword;
 extern crate term_painter;
 
 mod errors {
-    error_chain!{}
+    error_chain!{
+        foreign_links {
+            IoError(::std::io::Error);
+        }
+    }
 }
 
 use errors::*;
-use std::io::{stdin, Cursor, BufRead};
+use std::io::{stdin, Cursor, BufRead, Write};
 use std::fmt::Display;
 use rpassword::{read_password, read_password_with_reader};
 use term_painter::Color::*;
@@ -38,6 +42,7 @@ struct State<'ask> {
     fg_colour: Option<Colour>,
     validate: Option<&'ask Fn(Answer) -> bool>,
     redirect_in: Option<Cursor<&'ask [u8]>>,
+    redirect_out: Option<&'ask mut Write>,
 }
 
 #[derive(Default)]
@@ -47,20 +52,29 @@ pub struct StateBuilder<'ask, T: Display + Default> {
 }
 
 impl<'ask, T: Display + Default> StateBuilder<'ask, T> {
-    fn print_message(&self, colours: &Colours) {
+    fn print_message(&mut self, colours: &Colours) -> Result<()> {
         let message = match self.state.prompt {
             Some(prompt) => format!("{},{}", self.msg, prompt),
             None => format!("{}", self.msg),
         };
-        println!("{}", colours.fg.bg(colours.bg).paint(&message));
+        self.print(colours, message)
     }
 
-    fn print_confirm(&self, colours: &Colours) {
-        println!("{}", colours.fg.bg(colours.bg).paint("Are you sure? Y/N"));
+    fn print<D: Display>(&mut self, colours: &Colours, msg: D) -> Result<()> {
+        let output = format!("{}", colours.fg.bg(colours.bg).paint(msg));
+        match self.state.redirect_out {
+            Some(ref mut w) => w.write_all(output.as_bytes())?,
+            None => println!("{}", output),
+        };
+        Ok(())
+    }
+
+    fn print_confirm(&mut self, colours: &Colours) -> Result<()> {
+        self.print(colours, "Are you sure? Y/N")
     }
 
     fn read_no_echo(&mut self) -> Result<Answer> {
-        self.check_colour();
+        self.check_colour()?;
         let response = match self.state.redirect_in {
             Some(ref mut cur) => read_password_with_reader(Some(cur)),
             _ => read_password(),
@@ -72,7 +86,7 @@ impl<'ask, T: Display + Default> StateBuilder<'ask, T> {
         match self.state.no_echo {
             Some(true) => self.read_no_echo(),
             _ => {
-                self.check_colour();
+                self.check_colour()?;
                 self.read()
             }
         }
@@ -96,10 +110,10 @@ impl<'ask, T: Display + Default> StateBuilder<'ask, T> {
         }
     }
 
-    fn loop_confirm(&mut self, colours: &Colours) {
+    fn loop_confirm(&mut self, colours: &Colours) -> Result<()> {
         loop {
-            self.print_message(colours);
-            self.print_confirm(colours);
+            self.print_message(colours)?;
+            self.print_confirm(colours)?;
             match self.read() {
                 Ok(input) => {
                     if input.to_string() == "y" || input.to_string() == "Y" {
@@ -109,21 +123,22 @@ impl<'ask, T: Display + Default> StateBuilder<'ask, T> {
                 _ => (),
             };
         }
+        Ok(())
     }
 
-    fn check_confirm(&mut self, colours: &Colours) {
+    fn check_confirm(&mut self, colours: &Colours) -> Result<()> {
         match self.state.confirm {
             Some(true) => self.loop_confirm(colours),
             _ => self.print_message(colours),
-        };
+        }
     }
 
-    fn check_colour(&mut self) {
+    fn check_colour(&mut self) -> Result<()> {
         let colours = Colours {
             fg: self.get_fg_colour(),
             bg: self.get_bg_colour(),
         };
-        self.check_confirm(&colours);
+        self.check_confirm(&colours)
     }
 
     fn read(&mut self) -> Result<Answer> {
@@ -206,6 +221,11 @@ impl<'ask, T: Display + Default> StateBuilder<'ask, T> {
         self.state.redirect_in = Some(cur);
         self
     }
+
+    pub fn redirect_out<W: Write>(&mut self, w: &'ask mut W) -> &'ask mut StateBuilder<T> {
+        self.state.redirect_out = Some(w);
+        self
+    }
 }
 
 pub fn input<'ask, T: Display + Default>(msg: T) -> StateBuilder<'ask, T> {
@@ -277,6 +297,13 @@ mod tests {
     fn can_set_prompt() {
         assert_eq!(input(MSG).redirect_in(mock_input()).prompt(&':').ask().unwrap(),
                    DEFAULT_RESPONSE)
+    }
+
+    #[test]
+    fn can_redirect_output() {
+        let mut sink = ::std::io::sink();
+        assert_eq!(input(MSG).redirect_out(&mut sink).redirect_in(mock_input()).ask().unwrap(),
+                   DEFAULT_RESPONSE);
     }
 
     #[test]
