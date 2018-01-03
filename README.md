@@ -16,8 +16,10 @@ You can prompt users for input like so:
 ```
 extern crate arsk;
 
+use arsk::{ input, Colour };
+
 let msg = "What shall we do today?";
-let resp = arsk::input(msg).prompt(&':').fg_colour(arsk::Colour::Red).ask().unwrap();
+let resp = input(msg).prompt(&':').no_echo().fg_colour(Colour::Red).ask().unwrap();
 ```
 
 ## Contributing
