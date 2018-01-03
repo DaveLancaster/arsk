@@ -61,10 +61,10 @@ impl<'ask, T: Display + Default> StateBuilder<'ask, T> {
     }
 
     fn print<D: Display>(&mut self, colours: &Colours, msg: D) -> Result<()> {
-        let output = format!("{}", colours.fg.bg(colours.bg).paint(msg));
+        let output = format!("{}", msg);
         match self.state.redirect_out {
             Some(ref mut w) => w.write_all(output.as_bytes())?,
-            None => println!("{}", output),
+            None => println!("{}", colours.fg.bg(colours.bg).paint(output)),
         };
         Ok(())
     }
