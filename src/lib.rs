@@ -12,7 +12,7 @@ mod errors {
 }
 
 use errors::*;
-use std::io::{stdin, Cursor, BufRead, Write};
+use std::io::{stdin, BufRead, Cursor, Write};
 use std::fmt::Display;
 use rpassword::{read_password, read_password_with_reader};
 use term_painter::Color::*;
@@ -114,13 +114,9 @@ impl<'ask, T: Display + Default> StateBuilder<'ask, T> {
         loop {
             self.print_message(colours)?;
             self.print_confirm(colours)?;
-            match self.read() {
-                Ok(input) => {
-                    if input.to_string() == "y" || input.to_string() == "Y" {
-                        break;
-                    }
-                }
-                _ => (),
+            match self.read()?.to_string().trim() {
+              "y" | "Y" => break,
+              _ => (),
             };
         }
         Ok(())
@@ -144,10 +140,11 @@ impl<'ask, T: Display + Default> StateBuilder<'ask, T> {
     fn read(&mut self) -> Result<Answer> {
         let mut buf = String::new();
         match self.state.redirect_in {
-            Some(ref mut cur) => {
-                cur.read_line(&mut buf).chain_err(|| "Unable to read from input.")?
-            }
-            None => stdin().read_line(&mut buf).chain_err(|| "Unable to read from STDIN.")?,
+            Some(ref mut cur) => cur.read_line(&mut buf)
+                .chain_err(|| "Unable to read from input.")?,
+            None => stdin()
+                .read_line(&mut buf)
+                .chain_err(|| "Unable to read from STDIN.")?,
         };
         Ok(buf)
     }
@@ -229,13 +226,16 @@ impl<'ask, T: Display + Default> StateBuilder<'ask, T> {
 }
 
 pub fn input<'ask, T: Display + Default>(msg: T) -> StateBuilder<'ask, T> {
-    StateBuilder { msg: msg, ..Default::default() }
+    StateBuilder {
+        msg: msg,
+        ..Default::default()
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use std::fmt;
-    use ::{input, Colour, Answer, Cursor};
+    use {input, Answer, Colour, Cursor};
 
     const MSG: &str = "A test message.";
     const DEFAULT_RESPONSE: &str = "A response.";
@@ -271,70 +271,135 @@ mod tests {
 
     #[test]
     fn can_ask_a_question() {
-        assert_eq!(input(MSG).redirect_in(mock_input()).ask().unwrap(),
-                   DEFAULT_RESPONSE);
+        assert_eq!(
+            input(MSG).redirect_in(mock_input()).ask().unwrap(),
+            DEFAULT_RESPONSE
+        );
     }
 
     #[test]
     fn can_disable_echo() {
-        assert_eq!(input(MSG).redirect_in(mock_no_echo()).no_echo().ask().unwrap(),
-                   DEFAULT_RESPONSE);
+        assert_eq!(
+            input(MSG)
+                .redirect_in(mock_no_echo())
+                .no_echo()
+                .ask()
+                .unwrap(),
+            DEFAULT_RESPONSE
+        );
     }
 
     #[test]
     fn can_disable_answer() {
-        assert_eq!(input(MSG).redirect_in(mock_input()).no_answer().ask().unwrap(),
-                   EMPTY_RESPONSE);
+        assert_eq!(
+            input(MSG)
+                .redirect_in(mock_input())
+                .no_answer()
+                .ask()
+                .unwrap(),
+            EMPTY_RESPONSE
+        );
     }
 
     #[test]
     fn can_chain_operations() {
-        assert_eq!(input(MSG).redirect_in(mock_input()).no_answer().ask().unwrap(),
-                   EMPTY_RESPONSE);
+        assert_eq!(
+            input(MSG)
+                .redirect_in(mock_input())
+                .no_answer()
+                .ask()
+                .unwrap(),
+            EMPTY_RESPONSE
+        );
     }
 
     #[test]
     fn can_set_prompt() {
-        assert_eq!(input(MSG).redirect_in(mock_input()).prompt(&':').ask().unwrap(),
-                   DEFAULT_RESPONSE)
+        assert_eq!(
+            input(MSG)
+                .redirect_in(mock_input())
+                .prompt(&':')
+                .ask()
+                .unwrap(),
+            DEFAULT_RESPONSE
+        )
     }
 
     #[test]
     fn can_redirect_output() {
         let mut sink = ::std::io::sink();
-        assert_eq!(input(MSG).redirect_out(&mut sink).redirect_in(mock_input()).ask().unwrap(),
-                   DEFAULT_RESPONSE);
+        assert_eq!(
+            input(MSG)
+                .redirect_out(&mut sink)
+                .redirect_in(mock_input())
+                .ask()
+                .unwrap(),
+            DEFAULT_RESPONSE
+        );
     }
 
     #[test]
     fn can_set_fg_colour() {
-        assert_eq!(input(MSG).redirect_in(mock_input()).fg_colour(Colour::Red).ask().unwrap(),
-                   DEFAULT_RESPONSE);
+        assert_eq!(
+            input(MSG)
+                .redirect_in(mock_input())
+                .fg_colour(Colour::Red)
+                .ask()
+                .unwrap(),
+            DEFAULT_RESPONSE
+        );
     }
 
     #[test]
     fn can_set_bg_colour() {
-        assert_eq!(input(MSG).redirect_in(mock_input()).bg_colour(Colour::Red).ask().unwrap(),
-                   DEFAULT_RESPONSE);
+        assert_eq!(
+            input(MSG)
+                .redirect_in(mock_input())
+                .bg_colour(Colour::Red)
+                .ask()
+                .unwrap(),
+            DEFAULT_RESPONSE
+        );
     }
 
     #[test]
     fn can_ask_for_confirmation() {
-        assert_eq!(input(MSG).redirect_in(mock_confirm()).confirm().no_answer().ask().unwrap(),
-                   EMPTY_RESPONSE);
+        assert_eq!(
+            input(MSG)
+                .redirect_in(mock_confirm())
+                .confirm()
+                .no_answer()
+                .ask()
+                .unwrap(),
+            EMPTY_RESPONSE
+        );
     }
 
     #[test]
     fn can_validate_answer() {
-        let valid = |a: Answer| -> bool { if a == DEFAULT_RESPONSE { true } else { false } };
-        assert_eq!(input(MSG).redirect_in(mock_input()).validate(&valid).ask().unwrap(),
-                   DEFAULT_RESPONSE);
+        let valid = |a: Answer| -> bool {
+            if a == DEFAULT_RESPONSE {
+                true
+            } else {
+                false
+            }
+        };
+        assert_eq!(
+            input(MSG)
+                .redirect_in(mock_input())
+                .validate(&valid)
+                .ask()
+                .unwrap(),
+            DEFAULT_RESPONSE
+        );
     }
 
     #[test]
     fn can_accept_any_type_implementing_display_and_default() {
         let message = Message::TestMessage;
-        assert_eq!(input(message).redirect_in(mock_input()).ask().unwrap(),
-                   DEFAULT_RESPONSE);
+        assert_eq!(
+            input(message).redirect_in(mock_input()).ask().unwrap(),
+            DEFAULT_RESPONSE
+        );
     }
 }
